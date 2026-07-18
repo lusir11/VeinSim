@@ -79,6 +79,7 @@ services:
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       OPENFOAM_CASES_DIR: ${OPENFOAM_CASES_DIR}
+      SOLVER_MOCK: ${SOLVER_MOCK}
     volumes:
       - ./backend:/app
       - simulation_data:/opt/openfoam/cases
@@ -109,6 +110,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       OPENFOAM_CASES_DIR: ${OPENFOAM_CASES_DIR}
       SOLVER_TIMEOUT_SECONDS: ${SOLVER_TIMEOUT_SECONDS}
+      SOLVER_MOCK: ${SOLVER_MOCK}
     volumes:
       - ./backend:/app
       - simulation_data:/opt/openfoam/cases

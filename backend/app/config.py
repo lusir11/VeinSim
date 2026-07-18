@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     OPENFOAM_CASES_DIR: str = "/opt/openfoam/cases"
     SOLVER_TIMEOUT_SECONDS: int = 7200
     SOLVER_MAX_PARALLEL: int = 4
+    SOLVER_MOCK: bool = False  # True = use mock solver (no OpenFOAM needed)
 
     # ── App meta ─────────────────────────────────────────────────────────────
     APP_NAME: str = "VeinSim API"

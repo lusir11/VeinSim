@@ -76,4 +76,11 @@ export const simulationApi = {
     apiClient.post('/simulations', data),
   cancel: (id: string) => apiClient.post(`/simulations/${id}/cancel`),
   getResults: (id: string) => apiClient.get(`/simulations/${id}/results`),
+  getStlUrl: (id: string) => apiClient.get(`/simulations/${id}/stl-url`),
+};
+
+// ── Dashboard API ────────────────────────────────────────────────────────────
+
+export const dashboardApi = {
+  getStats: () => apiClient.get('/simulations/stats/dashboard'),
 };

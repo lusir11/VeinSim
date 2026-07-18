@@ -3,11 +3,14 @@
 import json
 import logging
 import os
+import random
 import shutil
 import subprocess
 import time
 import uuid
 from pathlib import Path
+
+import numpy as np
 
 from app.config import settings
 
@@ -137,6 +140,17 @@ constraints
 
 def run_meshing(case_dir: Path) -> dict:
     """Run snappyHexMesh and return mesh statistics."""
+    if settings.SOLVER_MOCK:
+        logger.info("[MOCK] Running meshing in %s", case_dir)
+        time.sleep(1)  # simulate meshing time
+        cell_count = random.randint(12000, 45000)
+        return {
+            "success": True,
+            "stdout": f"[MOCK] Mesh generation complete: {cell_count} cells",
+            "stderr": "",
+            "cell_count": cell_count,
+        }
+
     logger.info("Running snappyHexMesh in %s", case_dir)
     result = subprocess.run(
         ["snappyHexMesh", "-overwrite", "-case", str(case_dir)],
@@ -162,6 +176,9 @@ def run_meshing(case_dir: Path) -> dict:
 
 def run_solver(case_dir: Path, parallel: int = 0) -> dict:
     """Run the OpenFOAM solver and return execution metadata."""
+    if settings.SOLVER_MOCK:
+        return _run_mock_solver(case_dir)
+
     cmd = []
     n_procs = parallel if parallel > 0 else settings.SOLVER_MAX_PARALLEL
 
@@ -188,18 +205,21 @@ def run_solver(case_dir: Path, parallel: int = 0) -> dict:
     )
     wall_time = time.time() - start
 
-    # Parse residuals from last time-step
+    # Parse residuals from log
+    residual_history = []
     final_residual = None
     iterations = 0
-    for line in reversed(result.stdout.splitlines()):
+    for line in result.stdout.splitlines():
+        if "Initial residual" in line:
+            try:
+                val = float(line.split("Initial residual = ")[1].split(",")[0].strip())
+                residual_history.append(val)
+                final_residual = val
+            except (IndexError, ValueError):
+                pass
         if "Time =" in line:
             try:
                 iterations = int(line.split("=")[1].strip().rstrip(";"))
-            except (ValueError, IndexError):
-                pass
-        if "Initial residual" in line:
-            try:
-                final_residual = float(line.split("=")[-1].strip().rstrip(",;"))
             except (ValueError, IndexError):
                 pass
 
@@ -208,20 +228,106 @@ def run_solver(case_dir: Path, parallel: int = 0) -> dict:
         "wall_time_seconds": round(wall_time, 2),
         "iterations": iterations,
         "final_residual": final_residual,
+        "residual_history": residual_history,
         "stdout_tail": result.stdout[-3000:],
         "stderr_tail": result.stderr[-3000:],
     }
+
+
+def _run_mock_solver(case_dir: Path) -> dict:
+    """Generate realistic mock solver results with exponential decay residuals."""
+    logger.info("[MOCK] Running solver in %s", case_dir)
+
+    # Read max_iterations from controlDict if available
+    max_iters = 500
+    control_dict_path = case_dir / "system" / "controlDict"
+    if control_dict_path.exists():
+        content = control_dict_path.read_text()
+        for line in content.splitlines():
+            if "endTime" in line and not line.strip().startswith("//"):
+                try:
+                    max_iters = int(line.split()[-1].rstrip(";"))
+                except (ValueError, IndexError):
+                    pass
+
+    # Generate exponential decay residual curve
+    initial_residual = random.uniform(0.1, 1.0)
+    decay = random.uniform(0.008, 0.018)
+    iterations = random.randint(int(max_iters * 0.6), max_iters)
+
+    residual_history = []
+    for i in range(iterations):
+        base = initial_residual * np.exp(-decay * i)
+        noise = base * random.gauss(0, 0.05)
+        res = max(base + noise, 1e-8)
+        residual_history.append(float(res))
+
+    final_residual = residual_history[-1] if residual_history else 1e-5
+    wall_time = random.uniform(30, 120)
+
+    # Simulate solver execution time
+    time.sleep(3)
+
+    return {
+        "success": True,
+        "wall_time_seconds": round(wall_time, 2),
+        "iterations": iterations,
+        "final_residual": final_residual,
+        "residual_history": residual_history,
+        "stdout_tail": f"[MOCK] Solver completed {iterations} iterations, final residual: {final_residual:.2e}",
+        "stderr_tail": "",
+    }
+
+
+# ── Mock alpha field generation ──────────────────────────────────────────────
+
+
+def generate_mock_alpha_field(shape: tuple[int, int, int] = (30, 30, 10)) -> np.ndarray:
+    """Generate a mock 3D porosity field with channel-like structures.
+
+    Uses random noise + Gaussian smoothing to create a pseudo-optimized
+    topology with connected flow channels.
+    """
+    from scipy.ndimage import gaussian_filter
+
+    logger.info("[MOCK] Generating alpha field with shape %s", shape)
+
+    # Base random field
+    np.random.seed(42)  # reproducible for consistent results
+    noise = np.random.random(shape)
+
+    # Smooth to create connected structures
+    alpha = gaussian_filter(noise, sigma=2.5)
+
+    # Normalize to [0, 1]
+    alpha = (alpha - alpha.min()) / (alpha.max() - alpha.min())
+
+    # Create inlet/outlet channels (left/right faces = fluid)
+    alpha[:, :2, :] = np.clip(alpha[:, :2, :] + 0.4, 0, 1)
+    alpha[:, -2:, :] = np.clip(alpha[:, -2:, :] + 0.4, 0, 1)
+
+    # Create some branching structure via thresholding
+    alpha = np.where(alpha > 0.55, np.clip(alpha + 0.2, 0, 1), np.clip(alpha - 0.15, 0, 1))
+
+    return alpha
 
 
 # ── Result post-processing ────────────────────────────────────────────────────
 
 
 def extract_metrics(case_dir: Path) -> dict:
-    """Parse log and postProcessing output to extract performance metrics.
+    """Parse log and postProcessing output to extract performance metrics."""
+    if settings.SOLVER_MOCK:
+        logger.info("[MOCK] Extracting metrics from %s", case_dir)
+        return {
+            "max_temperature_k": round(345.2 + random.uniform(-5, 5), 2),
+            "avg_temperature_k": round(318.7 + random.uniform(-3, 3), 2),
+            "pressure_drop_pa": round(1250.0 + random.uniform(-200, 200), 1),
+            "nusselt_number": round(8.5 + random.uniform(-1, 1), 3),
+            "thermal_resistance_k_w": round(0.042 + random.uniform(-0.005, 0.005), 4),
+            "pumping_power_w": round(2.3 + random.uniform(-0.3, 0.3), 2),
+        }
 
-    In production this would parse OpenFOAM's functionObject output;
-    here we provide a stub returning placeholder values.
-    """
     # TODO: parse real postProcessing/ data
     return {
         "max_temperature_k": None,

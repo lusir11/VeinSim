@@ -14,8 +14,11 @@ from app.schemas.simulation import (
     SimulationRead,
     SimulationListRead,
     OptimizationResultRead,
+    StlUrlRead,
+    DashboardStatsRead,
 )
 from app.services.auth_service import get_current_user
+from app.services.minio_service import get_presigned_url
 from app.celery_worker import run_simulation_task
 
 router = APIRouter(prefix="/simulations", tags=["simulations"])
@@ -73,6 +76,47 @@ async def list_simulations(
     return SimulationListRead(items=items, total=total)
 
 
+# ── Dashboard stats (must be BEFORE /{simulation_id} to avoid path conflict) ─
+
+
+@router.get("/stats/dashboard", response_model=DashboardStatsRead)
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return aggregated statistics for the dashboard."""
+    from app.models.project import Project
+
+    total_projects = (await db.execute(
+        select(sa_func.count(Project.id)).where(Project.owner_id == current_user.id)
+    )).scalar() or 0
+
+    total_simulations = (await db.execute(
+        select(sa_func.count(Simulation.id))
+    )).scalar() or 0
+
+    converged_count = (await db.execute(
+        select(sa_func.count(Simulation.id)).where(Simulation.status == SimulationStatus.CONVERGED)
+    )).scalar() or 0
+
+    running_count = (await db.execute(
+        select(sa_func.count(Simulation.id)).where(
+            Simulation.status.in_([
+                SimulationStatus.RUNNING,
+                SimulationStatus.MESHING,
+                SimulationStatus.QUEUED,
+            ])
+        )
+    )).scalar() or 0
+
+    return DashboardStatsRead(
+        total_projects=total_projects,
+        total_simulations=total_simulations,
+        converged_count=converged_count,
+        running_count=running_count,
+    )
+
+
 @router.get("/{simulation_id}", response_model=SimulationRead)
 async def get_simulation(
     simulation_id: uuid.UUID,
@@ -123,3 +167,24 @@ async def get_simulation_results(
     )
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+@router.get("/{simulation_id}/stl-url", response_model=StlUrlRead)
+async def get_simulation_stl_url(
+    simulation_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return a presigned URL for the optimized STL geometry."""
+    stmt = select(OptimizationResult).where(
+        OptimizationResult.simulation_id == simulation_id,
+        OptimizationResult.is_final == True,
+    )
+    result = await db.execute(stmt)
+    opt = result.scalar_one_or_none()
+
+    if not opt or not opt.stl_file_key:
+        raise HTTPException(status_code=404, detail="No STL result available for this simulation")
+
+    url = get_presigned_url(opt.stl_file_key, expires_hours=1)
+    return StlUrlRead(url=url, expires_in=3600)

@@ -1,7 +1,7 @@
 /**
  * Dashboard page — overview of projects and recent simulations.
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Row, Col, Card, Statistic, Typography } from 'antd';
 import {
   ProjectOutlined,
@@ -10,10 +10,31 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import ModelViewer from '../components/three/ModelViewer';
+import { dashboardApi } from '../api/client';
 
 const { Title, Paragraph } = Typography;
 
+interface DashboardStats {
+  total_projects: number;
+  total_simulations: number;
+  converged_count: number;
+  running_count: number;
+}
+
 const DashboardPage: React.FC = () => {
+  const [stats, setStats] = useState<DashboardStats>({
+    total_projects: 0,
+    total_simulations: 0,
+    converged_count: 0,
+    running_count: 0,
+  });
+
+  useEffect(() => {
+    dashboardApi.getStats()
+      .then((res) => setStats(res.data))
+      .catch(() => {/* keep defaults */});
+  }, []);
+
   return (
     <div>
       <Title level={3}>Dashboard</Title>
@@ -26,22 +47,22 @@ const DashboardPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="Projects" value={0} prefix={<ProjectOutlined />} />
+            <Statistic title="Projects" value={stats.total_projects} prefix={<ProjectOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="Simulations" value={0} prefix={<ThunderboltOutlined />} />
+            <Statistic title="Simulations" value={stats.total_simulations} prefix={<ThunderboltOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="Converged" value={0} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#3f8600' }} />
+            <Statistic title="Converged" value={stats.converged_count} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#3f8600' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card>
-            <Statistic title="Running" value={0} prefix={<ClockCircleOutlined />} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="Running" value={stats.running_count} prefix={<ClockCircleOutlined />} valueStyle={{ color: '#cf1322' }} />
           </Card>
         </Col>
       </Row>

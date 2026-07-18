@@ -1,18 +1,24 @@
 /**
- * Simulation Detail page — live progress monitoring via WebSocket.
+ * Simulation Detail page — live progress monitoring via WebSocket,
+ * convergence chart, and 3D STL viewer for optimized geometry.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Typography, Card, Descriptions, Tag, Progress, Button,
-  Row, Col, Steps, Alert,
+  Row, Col, Steps, Alert, Space,
 } from 'antd';
 import {
   ArrowLeftOutlined, CheckCircleOutlined, LoadingOutlined,
-  ClockCircleOutlined,
+  ClockCircleOutlined, DownloadOutlined,
 } from '@ant-design/icons';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { simulationApi } from '../api/client';
 import { useSimulationWs } from '../hooks/useSimulationWs';
+import STLViewer from '../components/three/STLViewer';
 
 const { Text } = Typography;
 
@@ -26,6 +32,7 @@ const SimulationDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [simulation, setSimulation] = useState<Record<string, unknown> | null>(null);
+  const [stlUrl, setStlUrl] = useState<string | null>(null);
   const ws = useSimulationWs(id || null);
 
   // Load simulation data
@@ -49,6 +56,30 @@ const SimulationDetailPage: React.FC = () => {
   const currentStatus = ws.latestStatus !== 'idle' ? ws.latestStatus : (simulation?.status as string) || 'queued';
   const isRunning = currentStatus === 'running' || currentStatus === 'meshing';
   const currentStep = Math.max(0, statusSteps.indexOf(currentStatus));
+
+  // Fetch STL URL when converged
+  useEffect(() => {
+    if (currentStatus === 'converged' && id && !stlUrl) {
+      simulationApi.getStlUrl(id)
+        .then((res) => setStlUrl(res.data.url))
+        .catch(() => {/* no STL available */});
+    }
+  }, [currentStatus, id, stlUrl]);
+
+  // Build convergence chart data from WS events + DB residual_history
+  const wsResidualData = useMemo(() => {
+    return ws.events
+      .filter((e) => e.type === 'progress' && e.iteration != null && e.residual != null)
+      .map((e) => ({ iteration: e.iteration as number, residual: e.residual as number }));
+  }, [ws.events]);
+
+  const dbResidualData = useMemo(() => {
+    const history = simulation?.residual_history as number[] | null;
+    if (!history || !Array.isArray(history) || history.length === 0) return [];
+    return history.map((r, i) => ({ iteration: i, residual: r }));
+  }, [simulation]);
+
+  const chartData = dbResidualData.length > 0 ? dbResidualData : wsResidualData;
 
   return (
     <div>
@@ -112,6 +143,38 @@ const SimulationDetailPage: React.FC = () => {
               } />
             )}
           </Card>
+
+          {/* Convergence Chart */}
+          {chartData.length > 0 && (
+            <Card title="Convergence History" style={{ marginTop: 16 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="iteration"
+                    label={{ value: 'Iteration', position: 'insideBottom', offset: -5 }}
+                  />
+                  <YAxis
+                    scale="log"
+                    domain={['auto', 'auto']}
+                    label={{ value: 'Residual', angle: -90, position: 'insideLeft' }}
+                    tickFormatter={(v: number) => v.toExponential(1)}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [value.toExponential(4), 'Residual']}
+                    labelFormatter={(label: number) => `Iteration ${label}`}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="residual"
+                    stroke="#1565c0"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
         </Col>
 
         {/* Right: Simulation parameters and results */}
@@ -124,6 +187,12 @@ const SimulationDetailPage: React.FC = () => {
                 <Descriptions.Item label="Solver">{simulation.solver_type as string}</Descriptions.Item>
                 <Descriptions.Item label="Mesh Cells">
                   {(simulation.mesh_cell_count as number)?.toLocaleString() || '—'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Iterations">
+                  {(simulation.iterations_completed as number) ?? '—'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Final Residual">
+                  {simulation.final_residual ? (simulation.final_residual as number).toExponential(3) : '—'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Wall Time">
                   {simulation.wall_time_seconds ? `${((simulation.wall_time_seconds as number) / 60).toFixed(1)} min` : '—'}
@@ -141,12 +210,36 @@ const SimulationDetailPage: React.FC = () => {
                   </Descriptions.Item>
                 ))}
               </Descriptions>
+            ) : simulation?.status === 'converged' ? (
+              <Text type="secondary">Loading metrics...</Text>
             ) : (
               <Text type="secondary">No results available yet</Text>
             )}
           </Card>
         </Col>
       </Row>
+
+      {/* Optimized Geometry 3D Viewer */}
+      {currentStatus === 'converged' && stlUrl && (
+        <Card
+          title="Optimized Geometry"
+          extra={
+            <Space>
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                href={stlUrl}
+                target="_blank"
+              >
+                Download STL
+              </Button>
+            </Space>
+          }
+          style={{ marginTop: 16 }}
+        >
+          <STLViewer stlUrl={stlUrl} height={500} color="#1565c0" showGrid />
+        </Card>
+      )}
     </div>
   );
 };

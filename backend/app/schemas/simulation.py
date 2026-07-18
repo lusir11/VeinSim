@@ -77,3 +77,15 @@ class OptimizationResultRead(BaseModel):
     porosity_field_key: str | None
     is_final: bool
     created_at: datetime
+
+
+class StlUrlRead(BaseModel):
+    url: str
+    expires_in: int = 3600
+
+
+class DashboardStatsRead(BaseModel):
+    total_projects: int
+    total_simulations: int
+    converged_count: int
+    running_count: int
