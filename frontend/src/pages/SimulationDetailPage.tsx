@@ -66,6 +66,12 @@ const SimulationDetailPage: React.FC = () => {
     }
   }, [currentStatus, id, stlUrl]);
 
+  // Derive max_iterations from run_params for dynamic progress bar
+  const maxIterations = useMemo(() => {
+    const rp = simulation?.run_params as Record<string, unknown> | null;
+    return (rp?.max_iterations as number) || 500;
+  }, [simulation]);
+
   // Build convergence chart data from WS events + DB residual_history
   const wsResidualData = useMemo(() => {
     return ws.events
@@ -116,9 +122,9 @@ const SimulationDetailPage: React.FC = () => {
             {isRunning && (
               <>
                 <Progress
-                  percent={Math.min(100, (ws.latestIteration / 500) * 100)}
+                  percent={Math.min(100, (ws.latestIteration / maxIterations) * 100)}
                   status="active"
-                  format={() => `Iteration ${ws.latestIteration}`}
+                  format={() => `Iteration ${ws.latestIteration} / ${maxIterations}`}
                   style={{ marginBottom: 12 }}
                 />
                 {ws.latestResidual !== null && (

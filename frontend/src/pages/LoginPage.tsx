@@ -16,8 +16,8 @@ const LoginPage: React.FC = () => {
   const [registerForm] = Form.useForm();
 
   const handleLogin = async (values: { email: string; password: string }) => {
-    await login(values.email, values.password);
-    if (!error) navigate('/');
+    const success = await login(values.email, values.password);
+    if (success) navigate('/');
   };
 
   const handleRegister = async (values: {
@@ -25,8 +25,8 @@ const LoginPage: React.FC = () => {
     username: string;
     password: string;
   }) => {
-    await register(values.email, values.username, values.password);
-    if (!error) navigate('/');
+    const success = await register(values.email, values.username, values.password);
+    if (success) navigate('/');
   };
 
   return (

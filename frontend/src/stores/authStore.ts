@@ -17,8 +17,8 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, username: string, password: string) => Promise<boolean>;
   logout: () => void;
   fetchMe: () => Promise<void>;
 }
@@ -37,9 +37,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('access_token', token);
       const meRes = await authApi.getMe();
       set({ user: meRes.data, token, isLoading: false });
+      return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       set({ error: msg, isLoading: false });
+      return false;
     }
   },
 
@@ -53,9 +55,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('access_token', token);
       const meRes = await authApi.getMe();
       set({ user: meRes.data, token, isLoading: false });
+      return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       set({ error: msg, isLoading: false });
+      return false;
     }
   },
 

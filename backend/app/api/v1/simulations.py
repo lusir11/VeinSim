@@ -17,11 +17,24 @@ from app.schemas.simulation import (
     StlUrlRead,
     DashboardStatsRead,
 )
+from app.models.project import Project
 from app.services.auth_service import get_current_user
 from app.services.minio_service import get_presigned_url
 from app.celery_worker import run_simulation_task
 
 router = APIRouter(prefix="/simulations", tags=["simulations"])
+
+
+async def _verify_project_ownership(
+    project_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession
+) -> Project:
+    """Ensure the current user owns the project, raise 404 if not."""
+    stmt = select(Project).where(Project.id == project_id, Project.owner_id == user_id)
+    result = await db.execute(stmt)
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
 
 @router.post("", response_model=SimulationRead, status_code=status.HTTP_201_CREATED)
@@ -31,6 +44,9 @@ async def create_simulation(
     current_user: User = Depends(get_current_user),
 ):
     """Create a simulation record and optionally launch the solver."""
+    # Verify project ownership
+    await _verify_project_ownership(payload.project_id, current_user.id, db)
+
     run_params_dict = payload.run_params.model_dump() if payload.run_params else {}
 
     sim = Simulation(
@@ -62,8 +78,10 @@ async def list_simulations(
     current_user: User = Depends(get_current_user),
 ):
     """List simulations, optionally filtered by project."""
-    base_q = select(Simulation)
-    count_q = select(sa_func.count(Simulation.id))
+    # Only show simulations belonging to user's projects
+    user_project_ids = select(Project.id).where(Project.owner_id == current_user.id)
+    base_q = select(Simulation).where(Simulation.project_id.in_(user_project_ids))
+    count_q = select(sa_func.count(Simulation.id)).where(Simulation.project_id.in_(user_project_ids))
 
     if project_id:
         base_q = base_q.where(Simulation.project_id == project_id)
@@ -87,20 +105,26 @@ async def get_dashboard_stats(
     """Return aggregated statistics for the dashboard."""
     from app.models.project import Project
 
+    user_project_ids = select(Project.id).where(Project.owner_id == current_user.id)
+
     total_projects = (await db.execute(
         select(sa_func.count(Project.id)).where(Project.owner_id == current_user.id)
     )).scalar() or 0
 
     total_simulations = (await db.execute(
-        select(sa_func.count(Simulation.id))
+        select(sa_func.count(Simulation.id)).where(Simulation.project_id.in_(user_project_ids))
     )).scalar() or 0
 
     converged_count = (await db.execute(
-        select(sa_func.count(Simulation.id)).where(Simulation.status == SimulationStatus.CONVERGED)
+        select(sa_func.count(Simulation.id)).where(
+            Simulation.project_id.in_(user_project_ids),
+            Simulation.status == SimulationStatus.CONVERGED,
+        )
     )).scalar() or 0
 
     running_count = (await db.execute(
         select(sa_func.count(Simulation.id)).where(
+            Simulation.project_id.in_(user_project_ids),
             Simulation.status.in_([
                 SimulationStatus.RUNNING,
                 SimulationStatus.MESHING,
@@ -123,7 +147,9 @@ async def get_simulation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    stmt = select(Simulation).where(Simulation.id == simulation_id)
+    stmt = select(Simulation).join(Project).where(
+        Simulation.id == simulation_id, Project.owner_id == current_user.id
+    )
     result = await db.execute(stmt)
     sim = result.scalar_one_or_none()
     if not sim:
@@ -138,7 +164,9 @@ async def cancel_simulation(
     current_user: User = Depends(get_current_user),
 ):
     """Cancel a running simulation."""
-    stmt = select(Simulation).where(Simulation.id == simulation_id)
+    stmt = select(Simulation).join(Project).where(
+        Simulation.id == simulation_id, Project.owner_id == current_user.id
+    )
     result = await db.execute(stmt)
     sim = result.scalar_one_or_none()
     if not sim:

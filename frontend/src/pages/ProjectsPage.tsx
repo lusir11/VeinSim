@@ -40,10 +40,13 @@ const ProjectsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchProjects = async () => {
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  const fetchProjects = async (p = page) => {
     setLoading(true);
     try {
-      const res = await projectApi.list();
+      const res = await projectApi.list((p - 1) * pageSize, pageSize);
       setProjects(res.data.items);
       setTotal(res.data.total);
     } catch {
@@ -53,7 +56,7 @@ const ProjectsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchProjects(); }, []);
+  useEffect(() => { fetchProjects(); }, [page]);
 
   const handleCreate = async (values: { name: string; description?: string }) => {
     try {
@@ -146,7 +149,12 @@ const ProjectsPage: React.FC = () => {
         columns={columns}
         rowKey="id"
         loading={loading}
-        pagination={{ total, pageSize: 20 }}
+        pagination={{
+          current: page,
+          total,
+          pageSize,
+          onChange: (p) => { setPage(p); fetchProjects(p); },
+        }}
       />
 
       <Modal

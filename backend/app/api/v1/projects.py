@@ -88,7 +88,8 @@ async def update_project(
 
     update_data = payload.model_dump(exclude_unset=True)
     if "constraints" in update_data and update_data["constraints"] is not None:
-        update_data["constraints"] = update_data["constraints"]  # already dict from Pydantic
+        # DesignConstraints is already serialized to dict by model_dump()
+        pass
     for field, value in update_data.items():
         setattr(project, field, value)
 

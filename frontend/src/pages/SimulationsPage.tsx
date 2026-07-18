@@ -41,10 +41,13 @@ const SimulationsPage: React.FC = () => {
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [form] = Form.useForm();
 
-  const fetchSimulations = async () => {
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  const fetchSimulations = async (p = page) => {
     setLoading(true);
     try {
-      const res = await simulationApi.list();
+      const res = await simulationApi.list(undefined, (p - 1) * pageSize, pageSize);
       setSimulations(res.data.items);
       setTotal(res.data.total);
     } catch {
@@ -65,9 +68,9 @@ const SimulationsPage: React.FC = () => {
     fetchSimulations();
     fetchProjects();
     // Poll every 10s for status updates
-    const interval = setInterval(fetchSimulations, 10_000);
+    const interval = setInterval(() => fetchSimulations(), 10_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [page]);
 
   const handleCreate = async (values: {
     project_id: string;
@@ -184,7 +187,12 @@ const SimulationsPage: React.FC = () => {
         columns={columns}
         rowKey="id"
         loading={loading}
-        pagination={{ total, pageSize: 20 }}
+        pagination={{
+          current: page,
+          total,
+          pageSize,
+          onChange: (p) => { setPage(p); fetchSimulations(p); },
+        }}
         expandable={{
           expandedRowRender: (record) => (
             <Descriptions size="small" column={3} bordered>

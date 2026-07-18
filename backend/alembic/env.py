@@ -1,5 +1,6 @@
 """Alembic environment configuration for async SQLAlchemy."""
 
+import os
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
@@ -12,6 +13,13 @@ config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override sqlalchemy.url from environment variable if available
+# Convert async URL (postgresql+asyncpg://...) to sync (postgresql+psycopg2://...)
+db_url = os.environ.get("DATABASE_URL", "")
+if db_url:
+    sync_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    config.set_main_option("sqlalchemy.url", sync_url)
 
 target_metadata = Base.metadata
 

@@ -20,12 +20,16 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally
+// Handle 401 globally — clear both localStorage and Zustand store
 apiClient.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
+      // Sync Zustand store via lazy import to avoid circular deps
+      import('../stores/authStore').then(({ useAuthStore }) => {
+        useAuthStore.getState().logout();
+      });
       window.location.href = '/login';
     }
     return Promise.reject(error);
