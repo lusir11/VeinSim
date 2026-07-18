@@ -1,0 +1,44 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      alpha;
+}
+
+// ── Porosity field for topology optimization ─────────────────────────────────
+// alpha = 1: fully fluid (open channel)
+// alpha = 0: fully solid (blocked)
+// Initial field: all fluid (optimizer will block regions)
+
+dimensions      [0 0 0 0 0 0 0];
+
+internalField   uniform 1;
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           uniform 1;       // inlet must be fluid
+    }
+    outlet
+    {
+        type            fixedValue;
+        value           uniform 1;       // outlet must be fluid
+    }
+    topWall
+    {
+        type            fixedValue;
+        value           uniform 0;       // wall region: solid
+    }
+    bottomWall
+    {
+        type            fixedValue;
+        value           uniform 0;       // wall region: solid
+    }
+    frontAndBack
+    {
+        type            empty;
+    }
+}

@@ -1,0 +1,82 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+
+// ── 2D Cold-plate Design Domain ─────────────────────────────────────────────
+// 100mm (x) × 50mm (y) × 1mm (z) quasi-2D
+// Inlet: left (x=0), Outlet: right (x=100mm)
+// Top/bottom: symmetry (2D approximation)
+
+convertToMeters 0.001;  // all dimensions in mm
+
+vertices
+(
+    // Bottom face (z=0)
+    (  0   0  0)   // 0
+    (100   0  0)   // 1
+    (100  50  0)   // 2
+    (  0  50  0)   // 3
+    // Top face (z=1mm)
+    (  0   0  1)   // 4
+    (100   0  1)   // 5
+    (100  50  1)   // 6
+    (  0  50  1)   // 7
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (80 40 1) simpleGrading (1 1 1)
+);
+
+boundary
+(
+    inlet
+    {
+        type patch;
+        faces
+        (
+            (0 3 7 4)
+        );
+    }
+    outlet
+    {
+        type patch;
+        faces
+        (
+            (1 2 6 5)
+        );
+    }
+    topWall
+    {
+        type wall;
+        faces
+        (
+            (3 2 6 7)
+        );
+    }
+    bottomWall
+    {
+        type wall;
+        faces
+        (
+            (0 1 5 4)
+        );
+    }
+    frontAndBack
+    {
+        type empty;
+        faces
+        (
+            (0 1 2 3)
+            (4 5 6 7)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);

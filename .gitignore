@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+frontend/dist/
+backend/dist/
+
+# Docker
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Simulation data (large files)
+data/simulations/
+data/results/
+*.vtu
+*.vtk
+*.foam
+
+# Keep placeholder
+!data/.gitkeep
+!data/simulations/.gitkeep

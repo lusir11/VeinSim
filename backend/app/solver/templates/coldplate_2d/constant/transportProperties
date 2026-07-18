@@ -1,0 +1,22 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      transportProperties;
+}
+
+// ── Water coolant properties (20°C) ─────────────────────────────────────────
+
+nu              [0 2 -1 0 0 0 0] 1.004e-6;    // kinematic viscosity [m^2/s]
+Cp              [0 2 -2 -1 0 0 0] 4182.0;     // specific heat capacity [J/(kg·K)]
+k               [0 2 -1 -1 0 0 0] 0.6;        // thermal conductivity [W/(m·K)]
+rho             [1 -3 0 0 0 0 0] 998.2;       // density [kg/m^3]
+Pr              [0 0 0 0 0 0 0] 7.01;         // Prandtl number [-]
+
+// ── Solid (copper cold-plate base) ──────────────────────────────────────────
+
+nus             [0 2 -1 0 0 0 0] 0;           // solid: no fluid motion
+ks              [0 2 -1 -1 0 0 0] 385.0;      // copper thermal conductivity [W/(m·K)]
+rhos            [1 -3 0 0 0 0 0] 8960.0;      // copper density [kg/m^3]
+Cps             [0 2 -2 -1 0 0 0] 385.0;      // copper specific heat [J/(kg·K)]
