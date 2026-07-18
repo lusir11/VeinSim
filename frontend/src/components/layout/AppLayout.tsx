@@ -38,7 +38,7 @@ const AppLayout: React.FC = () => {
           }}
         >
           <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>
-            ToffeeX
+            VeinSim
           </Typography.Title>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
             Generative Thermal Design

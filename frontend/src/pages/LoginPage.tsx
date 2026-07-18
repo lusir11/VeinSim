@@ -43,7 +43,7 @@ const LoginPage: React.FC = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div style={{ textAlign: 'center' }}>
             <Title level={2} style={{ margin: 0 }}>
-              ToffeeX
+              VeinSim
             </Title>
             <Text type="secondary">Generative Thermal Design Platform</Text>
           </div>

@@ -1,5 +1,5 @@
 /**
- * Axios-based API client for the ToffeeX backend.
+ * Axios-based API client for the VeinSim backend.
  */
 import axios from 'axios';
 

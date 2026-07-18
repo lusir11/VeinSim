@@ -1,4 +1,4 @@
-"""ToffeeX Imitation — FastAPI application entry point."""
+"""VeinSim — FastAPI application entry point."""
 
 import logging
 from contextlib import asynccontextmanager

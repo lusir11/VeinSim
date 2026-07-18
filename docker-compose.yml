@@ -1,5 +1,5 @@
 # ===========================================
-# ToffeeX Imitation - Docker Compose
+# VeinSim - Docker Compose
 # ===========================================
 # Usage:
 #   cp .env.example .env
@@ -10,7 +10,7 @@ services:
   # ---------- Database ----------
   db:
     image: postgres:16-alpine
-    container_name: tofeex_db
+    container_name: veinsim_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -29,7 +29,7 @@ services:
   # ---------- Redis ----------
   redis:
     image: redis:7-alpine
-    container_name: tofeex_redis
+    container_name: veinsim_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -42,7 +42,7 @@ services:
   # ---------- MinIO (Object Storage) ----------
   minio:
     image: minio/minio:latest
-    container_name: tofeex_minio
+    container_name: veinsim_minio
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -64,7 +64,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: tofeex_backend
+    container_name: veinsim_backend
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -98,7 +98,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: tofeex_celery_worker
+    container_name: veinsim_celery_worker
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -122,7 +122,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: tofeex_frontend
+    container_name: veinsim_frontend
     restart: unless-stopped
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL}

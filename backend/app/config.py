@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     SOLVER_MAX_PARALLEL: int = 4
 
     # ── App meta ─────────────────────────────────────────────────────────────
-    APP_NAME: str = "ToffeeX Imitation API"
+    APP_NAME: str = "VeinSim API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = True
 
